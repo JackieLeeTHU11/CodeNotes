@@ -1,0 +1,4 @@
+helloworld : file1.o file2.o
+	gcc file1.o file2.o -o helloworld
+clean :
+	rm -rf *.o helloworld

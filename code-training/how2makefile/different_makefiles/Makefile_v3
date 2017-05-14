@@ -1,0 +1,18 @@
+SRCS = $(wildcard *.c)
+OBJS = $(SRCS:.c=.o)
+TAR = helloworld
+CC = gcc
+INCLUDES = -I/XXX
+LIBS = -L/XXX
+CFLAGS = -g -Wall -O0
+
+$(TAR) : $(OBJS)
+	$(CC) $^ $(INCLUDES) $(LIBS) -o $@
+
+%.o : %.c
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< 
+
+
+.PHONY : clean
+clean:
+	rm $(OBJS) TAR
