@@ -29,19 +29,19 @@
 
 #####  Two Stream Network及衍生方法
 
-[Two-Stream Convolutional Networks for Action Recognition in Videos]
+1). Two-Stream Convolutional Networks for Action Recognition in Videos
 
 Two Stream方法最初在这篇文章中被提出，基本原理为对视频序列中每两帧计算密集光流，得到密集光流的序列（即temporal信息）。然后对于视频图像（spatial）和密集光流（temporal）分别训练CNN模型，两个分支的网络分别对动作的类别进行判断，最后直接对两个网络的class score进行fusion（包括直接平均和svm两种方法），得到最终的分类结果。注意，对与两个分支使用了相同的2D CNN网络结构，其网络结构见下图。
 
 实验效果：UCF101-88.0%，HMDB51-59.4% 
 	
-[Convolutional Two-Stream Network Fusion for Video Action Recognition]
+2). Convolutional Two-Stream Network Fusion for Video Action Recognition
 
 这篇论文的主要工作为在two stream network的基础上，利用CNN网络进行了spatial以及temporal的融合，从而进一步提高了效果。此外，该文章还将基础的spatial和temporal网络都换成了VGG-16 network。
 
 实验效果：UCF101-92.5%，HMDB51-65.4% 
 	
-[Temporal Segment Networks: Towards Good Practices for Deep Action Recognition]
+3). Temporal Segment Networks: Towards Good Practices for Deep Action Recognition
 
 这篇文章是港中文Limin Wang大神的工作，他在这方面做了很多很棒的工作，可以followt他的主页：http://wanglimin.github.io/ 。
 
@@ -55,7 +55,7 @@ Two Stream方法最初在这篇文章中被提出，基本原理为对视频序�
 
 实验效果：UCF101-94.2%，HMDB51-69.4% 
 
-[Beyond Short Snippets: Deep Networks for Video Classification]
+4). Beyond Short Snippets: Deep Networks for Video Classification
 	
 这篇文章主要是用LSTM来做two-stream network的temporal融合。效果一般
 
@@ -63,7 +63,7 @@ Two Stream方法最初在这篇文章中被提出，基本原理为对视频序�
 		
 ##### C3D Network
 
-[Learning spatiotemporal features with 3d convolutional networks]
+1). Learning spatiotemporal features with 3d convolutional networks
 
 C3D是facebook的一个工作，采用3D卷积和3D Pooling构建了网络。论文笔记见[C3D论文笔记](http://blog.csdn.net/wzmsltw/article/details/61192243) 。通过3D卷积，C3D可以直接处理视频（或者说是视频帧的volume）
 
@@ -75,7 +75,7 @@ C3D是facebook的一个工作，采用3D卷积和3D Pooling构建了网络。论
 	
 ##### 其他方法
 
-[A Key Volume Mining Deep Framework for Action Recognition]
+1). A Key Volume Mining Deep Framework for Action Recognition
 
 本文主要做的是key volume的自动识别。通常都是将一整段动作视频进行学习，而事实上这段视频中有一些帧与动作的关系并不大。因此进行关键帧的学习，再在关键帧上进行CNN模型的建立有助于提高模型效果。本文达到了93%的正确率吗，为目前最高。
 
