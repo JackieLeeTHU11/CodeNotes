@@ -92,3 +92,149 @@ C3D是facebook的一个工作，采用3D卷积和3D Pooling构建了网络。论
 可以看出，这几年action recognition领域发展的非常快，有各种各样的方法被提出。但要注意，action recognition一般是对预先分割过的短视频进行分类，而真实环境中的视频一般都是没有预先切分过的，而且会包含大量无关信息。所以我认为这个领域的研究很像对Image Classification的研究，比较基础，可以为相关领域的研究提供有力的工具。
 
 
+##  Temporal Action Detection(时序行为检测), [转载](http://blog.csdn.net/wzmsltw/article/details/70849132)
+
+### 任务目的
+
+给定一段未分割的长视频，算法需要检测视频中的行为片段（action instance），包括其开始时间、结束时间以及类别。一段视频中可能包含一个或多个行为片段。
+
+### 任务特点与难点
+
+1). action recognition与temporal action detection之间的关系同 image classfication与 object detection之间的关系非常像。基于image classification问题，发展出了许多强大的网络模型（比如ResNet,VGGNet等），这些模型在object detection的方法中起到了很大的作用。同样，action recognition的相关模型（如2stream，C3D, iDT等)也被广泛的用在temporal action detection的方法中。
+2). 由于temporal action detection和object detection之间存在一定的相似性，所以很多temporal action detection方法都采用了与一些object detection方法相似的框架（最常见的就是参考R-CNN系列方法）。具体的会在后面的论文介绍中讲到。
+3). 时序行为检测的难点1：在目标检测中，物体目标的边界通常都是非常明确的，所以可以标注出较为明确的边界框。但时序行为的边界很多时候并不是很明确，什么时候一个行为算开始，什么时候行为算结束常常无法给出一个准确的边界（指精确的第几帧）。
+4). 时序行为检测的难点2：只使用静态图像的信息，而不结合时序信息在行为识别中是可以的（虽然结合时序信息效果会更好）。但在时序行为检测中，是无法只使用静态图像信息的。必须结合时序的信息，比如使用RNN读入每帧图像上用CNN提取的特征，或是用时序卷积等。
+5). 时序行为检测的难点3：时序行为片段的时间跨度变化可能非常大。比如在ActivityNet中，最短的行为片段大概1s左右，最长的行为片段则超过了200s。巨大的时长跨度，也使得检测时序动作非常难。
+
+### 任务关键点
+
+1). 高质量的时序片段（行为的时序边界）：很多方法都是使用Proposal + classification的框架。对于这类方法，重要的是较高的proposal质量（即在保证平均召回率的情况下，尽可能减少proposal的数量）。此外，对于所有方法，获取准确的时序行为边界都是非常重要的。
+
+2). 准确的分类（行为的类别）：即能准确的得到时序行为片段的类别信息。这里通常都会使用行为识别中的一些方法与模型。
+
+### 数据库
+
+1). THUMOS 2014：该数据集即为THUMOS Challenge 2014，地址为 THUMOS14。该数据集包括行为识别和时序行为检测两个任务。它的训练集为UCF101数据集，包括101类动作，共计13320段分割好的视频片段。THUMOS2014的验证集和测试集则分别包括1010和1574个未分割过的视频。在时序行为检测任务中，只有20类动作的未分割视频是有时序行为片段标注的，包括200个验证集视频（包含3007个行为片段）和213个测试集视频（包含3358个行为片段）。这些经过标注的未分割视频可以被用于训练和测试时序行为检测模型。实际上之后还有THUMOS Challenge 2015,包括更多的动作类别和视频数，但由于上面可以比较的方法不是很多，所以目前看到的文章基本上还是在THUMOS14上进行实验。
+
+2). MEXaction2：MEXaction2数据集中包含两类动作：骑马和斗牛。该数据集由三个部分组成：YouTube视频，UCF101中的骑马视频以及INA视频，数据集地址为MEXaction2 。其中YouTube视频片段和UCF101中的骑马视频是分割好的短视频片段，被用于训练集。而INA视频为多段长的未分割的视频，时长共计77小时，且被分为训练，验证和测试集三部分。训练集中共有1336个行为片段，验证集中有310个行为片段，测试集中有329个行为片断。且MEXaction2数据集的特点是其中的未分割视频长度都非常长，被标注的行为片段仅占视频总长的很低比例
+
+3). ActivityNet: 目前最大的数据库，同样包含分类和检测两个任务。数据集地址为ActivityNet ，这个数据集仅提供视频的youtube链接，而不能直接下载视频，所以还需要用python中的youtube下载工具来自动下载。该数据集包含200个动作类别，20000（训练+验证+测试集）左右的视频，视频时长共计约700小时。由于这个数据集实在太大了，我的实验条件下很难完成对其的实验，所以我之前主要还是在THUMOS14和MEXaction2上进行实验。
+
+### 研究进展
+
+temporal action detection近年的文章很多，这里也只简单介绍比较有代表性的几个工作。此外，此处仅介绍2016年底之前发布的相关工作，CVPR2017上的新工作见[知乎回答](https://www.zhihu.com/question/57523080/answer/158568414) 。为了方便对比，下面的数据库均只介绍其在THUMOS14数据库上的结果。
+
+1). End-to-end learning of action detection from frame glimpses in videos (CVPR2016)
+
+这篇文章是李飞飞实验室的工作。这篇文章使用强化学习的方法训练了一个基于RNN的代理(agent,不太确定应该怎么翻译)。这个agent不断观察视频帧并不断决定接下来要看哪里以及什么时候要生成一个动作预测。与后面很多基于proposal的方法不同，该方法是end-to-end且是直接生成行为预测的。
+
+该方法在THUMOS14上的mAP为17.1%（重叠度阈值取0.5）
+
+2). Temporal Action Localization with Pyramid of Score Distribution Features (CVPR2016)
+
+该方法在特征方面使用了传统的iDT特征。简单来说，该方法基于iDT特征对视频提取了一种分数分布金字塔特征(Pyramid of Score Distribution Feature, PSDF).之后再使用了LSTM网络对PSDF特征序列进行处理，并根据输出的frame-level的行为类别置信度分数处理得到行为片段的预测。
+
+PSDF方法效果还是不错的，表明传统特征其实也还有一战之力。但是iDT特征的提取实在是太耗时/耗储存空间了。(iDT特征的大小要比原始视频的大小都要大很多)。个人认为用iDT特征做行为检测的前景不大。
+该方法在THUMOS14上的mAP为18.8%（重叠度阈值取0.5）
+
+3). Temporal action localization in untrimmed videos via multi-stage cnns (CVPR2016)
+
+该方法的整体框架图如下所示。我之前写过这篇文章的论文笔记，见http://blog.csdn.net/wzmsltw/article/details/65437295 ，代码见https://github.com/zhengshou/scnn/ 。该方法首先使用滑窗的方法生成多种尺寸的视频片段(segment)，再使用多阶段的网络（Segment-CNN)来处理。SCNN主要包括三个子网络，均使用了C3D network。第一个是proposal network，用来判断当前输入的视频片段是一个动作的概率；第二个为classification network,该网络用于给视频片段分类，但该网络不用于测试环节，而只是用作初始化localization network；第三个子网络为localization network，该网络的输出形式依旧为类别的概率，但在训练时加入了重叠度相关的损失函数，使得网络能更好的估计一个视频片段的类别和重叠度。最后采用了非极大化抑制（NMS）来去除重叠的片段，完成预测。
+
+该方法实际上采用了类似于R-CNN的思路，后面有不少文章也采用了类似的思想，即先提proposal，再分类。
+
+该方法在THUMOS14上的mAP为19.0%（重叠度阈值取0.5）
+
+4). Efficient Action Detection in Untrimmed Videos via Multi-Task Learning (WACV2016)
+
+这篇文章实际上是将SCNN的多阶段网络放到了一个网络里面去，通过共享前面的卷积层，加快了算法的速度。但从效果上看，基本与SCNN完全相同。感觉算是SCNN的完善版本。
+
+该方法在THUMOS14上的mAP为19.0%（重叠度阈值取0.5）.其余重叠度阈值下的表现也与SCNN基本一致。
+
+### 小结与讨论
+
+这两年时序行为检测领域发展的非常快，相对于目标检测来说，时序行为检测这个方向做的人相对还是比较少，有很大的发（水）展（paper）空间。但一个很大的问题是处理视频数据计算量很大，所以这方面的研究很受硬件条件的影响，羡慕大佬们论文中各种四路titan，四路k40的配置啊。之后会再专门写笔记介绍CVPR2017中该领域的进展情况。
+
+
+## video captioning (给视频生成文字描述) [转载](http://blog.csdn.net/wzmsltw/article/details/71192385)
+
+### 数据库
+
+1). MSR-VTT dataset: 该数据集为ACM Multimedia 2016 的 Microsoft Research - Video to Text (MSR-VTT) Challenge。地址为 MSR-VTT dataset 。该数据集包含10000个视频片段（video clip），被分为训练，验证和测试集三部分。每个视频片段都被标注了大概20条英文句子。此外，MSR-VTT还提供了每个视频的类别信息（共计20类），这个类别信息算是先验的，在测试集中也是已知的。同时，视频都是包含音频信息的。该数据库共计使用了四种机器翻译的评价指标，分别为：METEOR, BLEU@1-4,ROUGE-L,CIDEr。
+2). YouTube2Text dataset(or called MSVD dataset):该数据集同样由Microsoft Research提供，地址为 MSVD dataset 。该数据集包含1970段YouTube视频片段（时长在10-25s之间），每段视频被标注了大概40条英文句子。
+
+### 任务关键点分析
+
+video captioning任务可以理解为视频图像序列到文本序列的seq2seq任务。在近年的方法中，大部分文章都使用了LSTM来构造encoder-decoder结构，即使用lstm encoder来编码视频图像序列的特征，再用lstm decoder解码出文本信息。这样的video captioning模型结构最早在ICCV2015的”Sequence to Sequence – Video to Text”一文中提出，如下图所示。
+
+![Alt text](s2s?raw=true "video captioning")
+
+基于上图中的结构，构造一个encoder-decoder结构的模型主要包括几个关键点：
+
+1). 输入特征：即如何提取视频中的特征信息，在很多篇文章中都使用了多模态的特征。主要包括如下几种： 
+
+	基于视频图像的信息：包括简单的用CNN（VGGNet, ResNet等）提取图像(spatial)特征，用action recognition的模型(如C3D)提取视频动态(spatial+temporal)特征
+	
+	基于声音的特征：对声音进行编码，包括BOAW（Bag-of-Audio-Words)和FV(Fisher Vector)等
+	
+	先验特征：比如视频的类别，这种特征能提供很强的先验信息
+	
+	基于文本的特征：此处基于文本的特征是指先从视频中提取一些文本的描述，再將这些描述作为特征，来进行video captioning。这类特征我看到过两类，一类是先对单帧视频进行image captioning,将image captioning的结果作为video captioning的输入特征，另外一类是做video tagging，将得到的标签作为特征。
+	
+2). encoder-decoder构造：虽然大部分工作都是用lstm做encoder-decoder，但各个方法的具体配置还是存在着一定的差异。
+
+3).  输出词汇的表达：主要包括两类，一类是使用Word2Vec这种词向量表示，另外就是直接使用词袋表示。
+
+4). 其它部分：比如训练策略，多任务训练之类的。
+
+### 论文介绍
+
+ACM MultiMedia 2016： MSR-VTT Challenge
+
+首先介绍一下上述数据库MSR-VTT这个竞赛当时的前5名的方案。Team指竞赛中的队伍名称，rank为竞赛的M1排名，paper为对应的方案描述，可以通过google scholar搜到。
+
+1). Team- Aalto; Rank-1; Paper: Frame- and Segment-Level Features and Candidate Pool Evaluation for Video Caption Generation
+
+这个方法的思路很有趣。它先用多个基于不同特征的video caption方法（均为encoder-decoder结构）对视频生成多段描述。再构造了一个基于CNN的评价网络，如下图所示，输入为video caption方法得到的句子和视频的特征，输出为两者之间的匹配度。这个评价网络实际上是作为多个video caption模型的ensemble方法。
+
+2). Team- v2t_navigator; Rank-2; Paper: Describing Videos using Multi-modal Fusion
+
+方法框架采用标准的encoder-decoder模式。
+
+	特征方面：这篇文章基本用上了所有能用到的多模态特征，包括视频，图像，声音，类别信息等等。
+
+	encoder：为了结合各类特征，该方法使用了单层的无激活函数（应该也可以叫线性激活？）的全连接层作为编码器。
+
+	decoder：单层单向LSTM
+
+	其他：各种用于特征提取的模型都是预先训练好的，encoder和decoder同时训练。
+	
+3). Team- VideoLAB; Rank-3; Paper: Multimodal Video Description
+
+方法框架也是encoder-decoder模式，与v2t_navigator的方法比较像
+
+	特征方面：使用了视频，图像，声音，类别信息等，基本和v2t_navigator队相同
+	
+	encoder and decoder： 均为lstm
+	
+4). Team- ruc-uva; Rank-5; Paper:Early Embedding and Late Reranking for Video Captioning
+
+这篇文章的方法复杂一些，在使用CNN提取了视频特征后，该方法使用了Video tagging方法提取视频的关键词，这些关键词和视频CNN特征一同作为decoder的输入。此外，tagging产生的关键词还在最后用于生成句子的排序。
+
+2017年的几篇新论文
+
+1). Multi-Task Video Captioning with Video and Entailment Generation（ACL2017）
+
+这篇文章的想法很有趣，其方法结构图如下图所示。整个框架共包括三个任务：1)Unsupervised video prediction:无监督的未来帧预测，使用video encoder 和video decoder；2) Entailment Generation: 同义句生成/句子含义生成，也就是给句子生成含义相似的新句子，使用language encoder和 language decoder；3)Video Captioning:也就是视频语义生成，使用了video encoder和language decoder。在这几个任务中，video encoder和laguange decoder的参数是共享的。在训练中，该方法在mini-batch层面对三个任务进行迭代训练（不同任务的训练次数比例由参数确定）。
+
+![Alt text](acl2017.png?raw=true "Multi-Task Video Captioning with Video and Entailment Generation")
+
+2). Weakly Supervised Dense Video Captioning（CVPR2017）
+
+这篇文章主要研究的是dense video captioning问题，dense video captioning是要产生对一段视频所有可能的描述。本文提出了一种弱监督方法，Multi-instance multi-label learning(MIMLL) 。MIMLL直接从视频-句子 数据（这样的数据对于该问题算是弱监督的）中学习每个视频图像区域对应的描述词汇向量。之后将这些词汇描述向量结合起来作为encoder-decoder的输入，实现video captioning。在MSR-VTT数据集中，该方法是目前的state-of-the-art 方法。
+
+![Alt text](cvpr2017.png?raw=true "Weakly Supervised Dense Video Captioning")
+
+### 小结与讨论
+
+从以上的论文介绍可以看出，基于基础的encoder-decoder结构，不同的方法在不同的方面对提高模型效果进行了探索，包括多模态特征，多任务学习等等。该领域现在也处在快速发展阶段，新的方法层出不穷，改进模型的核心思想我认为还是如何去更好的挖掘视频中局部的语义信息，并将其有效的组合成自然语言。同时，我觉得这个方向也是很有前景的一个方向，给视频生成文字描述有很多的应用场景。
